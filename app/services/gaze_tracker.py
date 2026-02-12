@@ -81,7 +81,7 @@ def squash(v, limit=1.0):
     """Squash não-linear estilo WebGazer"""
     return np.tanh(v / limit)
 
-def trian_and_predict(model_name, X_train, y_train, X_test, y_test, label):
+def train_and_predict(model_name, X_train, y_train, X_test, y_test, label):
     """
     Helper to train a model (with or without GridSearchCV) and return predictions.
     """
@@ -161,7 +161,7 @@ def predict(data, k, model_X, model_Y):
     X_train_x = scaler_x.fit_transform(X_train_x)
     X_test_x  = scaler_x.transform(X_test_x)
     
-    y_pred_x = trian_and_predict(model_X, X_train_x, y_train_x, X_test_x, y_test_x, "X")
+    y_pred_x = train_and_predict(model_X, X_train_x, y_train_x, X_test_x, y_test_x, "X")
     
     # Scaling (fit on train only)
     scaler_y = StandardScaler()
@@ -169,7 +169,7 @@ def predict(data, k, model_X, model_Y):
     X_test_y  = scaler_y.transform(X_test_y)
 
     
-    y_pred_y = trian_and_predict(model_Y, X_train_y, y_train_y, X_test_y, y_test_y, "Y")
+    y_pred_y = train_and_predict(model_Y, X_train_y, y_train_y, X_test_y, y_test_y, "Y")
     
     # Convert the predictions to a numpy array and apply KMeans clustering
     data = np.array([y_pred_x, y_pred_y]).T
