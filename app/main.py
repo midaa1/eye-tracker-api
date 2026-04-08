@@ -1,5 +1,7 @@
 from flask import Flask, request, Response, jsonify
 from flask_cors import CORS
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 # Local imports from app
 from app.routes import session as session_route
@@ -8,6 +10,14 @@ from app.routes import session as session_route
 # Initialize Flask app and enable CORS
 app = Flask(__name__)
 CORS(app)
+
+# Rate limiting: protect CPU-intensive ML endpoints from abuse/DoS
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://",
+)
 
 
 # @app.route('/', methods=['GET'])
@@ -55,11 +65,13 @@ CORS(app)
 #     return Response('Invalid request method for route', status=405, mimetype='application/json')
 
 @app.route('/api/session/health', methods=['GET'])
+@limiter.exempt
 def health_check():
     return jsonify({'status': 'ok'}), 200
 
 # Route for validating calibration
 @app.route("/api/session/calib_validation", methods=["POST"])
+@limiter.limit("10 per minute")
 def calib_validation():
     """
     Validates the calibration request.
@@ -73,6 +85,7 @@ def calib_validation():
     return Response('Invalid request method for route', status=405, mimetype='application/json')
 
 @app.route('/api/session/batch_predict', methods=['POST'])
+@limiter.limit("30 per minute")
 def batch_predict():
     if request.method == 'POST':
         return session_route.batch_predict()
