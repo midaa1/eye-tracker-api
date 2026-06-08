@@ -14,13 +14,15 @@ from sklearn.preprocessing import StandardScaler, PolynomialFeatures
 from sklearn.pipeline import make_pipeline
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import Ridge
-from sklearn.pipeline import make_pipeline
+
 
 # Model imports
 from sklearn import linear_model
 from sklearn.svm import SVR
 from sklearn.cluster import KMeans
 from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import GroupShuffleSplit
+import matplotlib.pyplot as plt
 
 # Metrics imports
 from sklearn.metrics import make_scorer
@@ -37,6 +39,7 @@ from app.services.metrics import (
     func_presicion_y,
     func_accuracy_x,
     func_accuracy_y,
+    func_total_accuracy,
 )
 from app.services.config import hyperparameters
 
@@ -118,6 +121,33 @@ def squash(v, limit=1.0):
     """Squash não-linear estilo WebGazer"""
     return np.tanh(v / limit)
 
+def trian_and_predict(model_name, X_train, y_train, X_test, y_test, label):
+    """
+    Helper to train a model (with or without GridSearchCV) and return predictions.
+    """
+    if model_name == "Linear Regression":
+        model = models[model_name]
+        model.fit(X_train, y_train)
+        y_pred = model.predict(X_test)
+        print(f"Score {label}: {r2_score(y_test, y_pred)}")
+        return y_pred
+    else:
+        pipeline = models[model_name]
+        param_grid = hyperparameters[model_name]["param_grid"]
+        grid_search = GridSearchCV(
+            pipeline,
+            param_grid,
+            cv=5,
+            scoring=scoring,
+            refit="r2",
+            return_train_score=True,
+        )
+        grid_search.fit(X_train, y_train)
+        best_model = grid_search.best_estimator_
+        y_pred = best_model.predict(X_test)
+        return y_pred
+
+
 def predict(data, k, model_X, model_Y):
     """
     Predicts the gaze coordinates using machine learning models.
@@ -131,97 +161,52 @@ def predict(data, k, model_X, model_Y):
     Returns:
         dict: A dictionary containing the predicted gaze coordinates, precision, accuracy, and cluster centroids.
     """
-    # Inicialize standard scaler
-    sc = StandardScaler()
+
 
     # Load data from csv file and drop unnecessary columns
     df = pd.read_csv(data)
     df = df.drop(["screen_height", "screen_width"], axis=1)
+    print(df.head())
+    # Create groups (point_x, point_y)
+    df["group"] = list(zip(df["point_x"], df["point_y"]))
 
     # Data for X axis
     X_x = df[["left_iris_x", "right_iris_x"]]
     X_y = df["point_x"]
-
-    # Normalize data using standard scaler and split data into training and testing sets
-    X_x = sc.fit_transform(X_x)
-    X_train_x, X_test_x, y_train_x, y_test_x = train_test_split(
-        X_x, X_y, test_size=0.2, random_state=42
-    )
-
-    if (
-        model_X == "Linear Regression"
-        or model_X == "Elastic Net"
-        or model_X == "Support Vector Regressor"
-    ):
-        model = models[model_X]
-
-        # Fit the model and make predictions
-        model.fit(X_train_x, y_train_x)
-        y_pred_x = model.predict(X_test_x)
-
-    else:
-        pipeline = models[model_X]
-        param_grid = hyperparameters[model_X]["param_grid"]
-
-        # Initialize GridSearchCV with the pipeline and parameter grid
-        grid_search = GridSearchCV(
-            pipeline,
-            param_grid,
-            cv=5,
-            scoring=scoring,
-            refit="r2",
-            return_train_score=True,
-        )
-
-        # Fit the GridSearchCV to the training data for X
-        grid_search.fit(X_train_x, y_train_x)
-
-        # Use the best estimator to predict the values and calculate the R2 score
-        best_model_x = grid_search.best_estimator_
-        y_pred_x = best_model_x.predict(X_test_x)
-
+    # groups = df["group"]
     # Data for Y axis
-    X_y = df[["left_iris_y", "right_iris_y"]]
+    X_feature_y = df[["left_iris_y", "right_iris_y"]]
     y_y = df["point_y"]
-
-    # Normalize data using standard scaler and split data into training and testing sets
-    X_y = sc.fit_transform(X_y)
-    X_train_y, X_test_y, y_train_y, y_test_y = train_test_split(
-        X_y, y_y, test_size=0.2, random_state=42
+    # Split data into training and testing sets then Normalize data using standard scaler
+    (
+        X_train_x, X_test_x,
+        y_train_x, y_test_x,
+        X_train_y, X_test_y,
+        y_train_y, y_test_y
+    )= train_test_split(
+        X_x,
+        X_y,
+        X_feature_y,
+        y_y,
+        test_size=0.2,
+        random_state=42,
     )
+    
+    # Scaling (fit on train only)
+    scaler_x = StandardScaler()
+    X_train_x = scaler_x.fit_transform(X_train_x)
+    X_test_x  = scaler_x.transform(X_test_x)
+    
+    y_pred_x = trian_and_predict(model_X, X_train_x, y_train_x, X_test_x, y_test_x, "X")
+    
+    # Scaling (fit on train only)
+    scaler_y = StandardScaler()
+    X_train_y = scaler_y.fit_transform(X_train_y)
+    X_test_y  = scaler_y.transform(X_test_y)
 
-    if (
-        model_Y == "Linear Regression"
-        or model_Y == "Elastic Net"
-        or model_Y == "Support Vector Regressor"
-    ):
-        model = models[model_Y]
-
-        # Fit the model and make predictions
-        model.fit(X_train_y, y_train_y)
-        y_pred_y = model.predict(X_test_y)
-
-    else:
-        pipeline = models[model_Y]
-        param_grid = hyperparameters[model_Y]["param_grid"]
-
-        # Initialize GridSearchCV with the pipeline and parameter grid
-        grid_search = GridSearchCV(
-            pipeline,
-            param_grid,
-            cv=5,
-            scoring=scoring,
-            refit="r2",
-            return_train_score=True,
-        )
-
-        # Fit the GridSearchCV to the training data for X
-        grid_search.fit(X_train_y, y_train_y)
-
-        # Use the best estimator to predict the values and calculate the R2 score
-        best_model_y = grid_search.best_estimator_
-        y_pred_y = best_model_y.predict(X_test_y)
-
+    
+    y_pred_y = trian_and_predict(model_Y, X_train_y, y_train_y, X_test_y, y_test_y, "Y")
+    
     # Convert the predictions to a numpy array and apply KMeans clustering
     data = np.array([y_pred_x, y_pred_y]).T
     model = KMeans(n_clusters=k, n_init="auto", init="k-means++")
@@ -236,25 +221,20 @@ def predict(data, k, model_X, model_Y):
     }
     df_data = pd.DataFrame(data)
     df_data["True XY"] = list(zip(df_data["True X"], df_data["True Y"]))
-
+    
     # Filter out negative values
     df_data = df_data[(df_data["Predicted X"] >= 0) & (df_data["Predicted Y"] >= 0)]
 
-    # Calculate the precision and accuracy for each
+    # Calculate the precision and accuracy for each 
     precision_x = df_data.groupby("True XY").apply(func_precision_x)
     precision_y = df_data.groupby("True XY").apply(func_presicion_y)
 
-    # Calculate the average precision and accuracy
+    # Calculate the average precision 
     precision_xy = (precision_x + precision_y) / 2
-    precision_xy = precision_xy / np.mean(precision_xy)
-
-    # Calculate the accuracy for each axis
-    accuracy_x = df_data.groupby("True XY").apply(func_accuracy_x)
-    accuracy_y = df_data.groupby("True XY").apply(func_accuracy_y)
-
-    # Calculate the average accuracy
-    accuracy_xy = (accuracy_x + accuracy_y) / 2
-    accuracy_xy = accuracy_xy / np.mean(accuracy_xy)
+    
+    # Calculate the average accuracy (eculidian distance)
+    accuracy_xy = df_data.groupby("True XY").apply(func_total_accuracy)
+    
 
     # Create a dictionary to store the data
     data = {}
