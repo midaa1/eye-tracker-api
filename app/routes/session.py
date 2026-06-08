@@ -134,11 +134,8 @@ def calib_results():
                 "k": k
             }
             
-            USE_EMULATORS=os.getenv('USE_EMULATORS')
             FUNCTIONS_ENDPOINT_URL = os.getenv('FUNCTIONS_ENDPOINT_URL')
-
-            if USE_EMULATORS:
-                FUNCTIONS_ENDPOINT_URL+='/receiveCalibration'    
+            FUNCTIONS_ENDPOINT_URL+='/receiveCalibration'    
 
             print("file_name:", file_name)
 
