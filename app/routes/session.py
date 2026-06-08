@@ -6,7 +6,7 @@ import json
 import csv
 import math
 import numpy as np
-
+import uuid
 from pathlib import Path
 import os
 import pandas as pd
@@ -24,6 +24,7 @@ from app.services import gaze_tracker
 
 
 # Constants
+
 ALLOWED_EXTENSIONS = {"txt", "webm"}
 COLLECTION_NAME = "session"
 
@@ -163,7 +164,7 @@ def batch_predict():
 
         base_path = Path().absolute() / "app/services/calib_validation/csv/data"
         calib_csv_path = base_path / f"{calib_id}_fixed_train_data.csv"
-        predict_csv_path = base_path / "temp_batch_predict.csv"
+        predict_csv_path = base_path / f"temp_batch_predict_{uuid.uuid4().hex}.csv"
 
         # CSV temporário
         with open(predict_csv_path, "w", newline="") as csvfile:
@@ -188,7 +189,8 @@ def batch_predict():
             screen_width=screen_width,
             screen_height=screen_height,
         )
-
+        os.remove(predict_csv_path)
+        
         return jsonify(convert_nan_to_none(result))
 
     except Exception as e:
