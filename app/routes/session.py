@@ -134,12 +134,13 @@ def calib_results():
                 "screen_width": screen_width,
                 "k": k
             }
-
-            RUXAILAB_WEBHOOK_URL = "https://receivecalibration-ffptzpxikq-uc.a.run.app"
+            
+            FUNCTIONS_ENDPOINT_URL = os.getenv('FUNCTIONS_ENDPOINT_URL')
+            FUNCTIONS_ENDPOINT_URL+='/receiveCalibration'    
 
             print("file_name:", file_name)
 
-            resp = requests.post(RUXAILAB_WEBHOOK_URL, json=payload)
+            resp = requests.post(FUNCTIONS_ENDPOINT_URL, json=payload)
             print("Enviado para RuxaiLab:", resp.status_code, resp.text)
         except Exception as e:
             print("Erro ao enviar para RuxaiLab:", e)
@@ -154,8 +155,8 @@ def batch_predict():
         iris_data = data["iris_tracking_data"]
         screen_width = data.get("screen_width")
         screen_height = data.get("screen_height")
-        model_X = data.get("model_X", "Linear Regression")
-        model_Y = data.get("model_Y", "Linear Regression")
+        model_name_X = data.get("model_name_X", "Linear Regression")
+        model_name_Y = data.get("model_name_Y", "Linear Regression")
         calib_id = data.get("calib_id")
 
         if not calib_id:
@@ -183,8 +184,8 @@ def batch_predict():
             calib_csv_path=calib_csv_path,
             predict_csv_path=predict_csv_path,
             iris_data=iris_data,
-            # model_X="Random Forest Regressor",
-            # model_Y="Random Forest Regressor",
+            model_name_X=model_name_X,
+            model_name_Y=model_name_Y,
             screen_width=screen_width,
             screen_height=screen_height,
         )
