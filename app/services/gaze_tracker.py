@@ -70,6 +70,46 @@ models = {
     )
 )}
 
+models_gaze_engineered = {
+    "Linear Regression": make_pipeline(
+        StandardScaler(),
+        linear_model.LinearRegression()
+    ),
+    "Ridge Regression": make_pipeline(
+        StandardScaler(),
+        linear_model.Ridge()
+    ),
+    "Lasso Regression": make_pipeline(
+        StandardScaler(),
+        linear_model.Lasso()
+    ),
+    "Elastic Net": make_pipeline(
+        StandardScaler(),
+        linear_model.ElasticNet(alpha=1.0, l1_ratio=0.5)
+    ),
+    "Bayesian Ridge": make_pipeline(
+        StandardScaler(),
+        linear_model.BayesianRidge()
+    ),
+    "SGD Regressor": make_pipeline(
+        StandardScaler(),
+        linear_model.SGDRegressor()
+    ),
+    "Support Vector Regressor": make_pipeline(
+        StandardScaler(),
+        SVR(kernel="linear")
+    ),
+    "Random Forest Regressor": make_pipeline(
+        StandardScaler(),
+        RandomForestRegressor(
+            n_estimators=200,
+            max_depth=10,
+            min_samples_split=5,
+            random_state=42
+        )
+    )
+}
+
 # Set the scoring metrics for GridSearchCV to r2_score and mean_absolute_error
 scoring = {
     "r2": make_scorer(r2_score),
@@ -235,9 +275,11 @@ def predict_new_data_simple(
     calib_csv_path,
     predict_csv_path,
     iris_data,
+    model_name_X="Linear Regression",
+    model_name_Y="Linear Regression",
     screen_width=None,
     screen_height=None,
-):
+):  
     # ============================
     # CONFIG (WebGazer-inspired)
     # ============================
@@ -308,8 +350,9 @@ def predict_new_data_simple(
     # ============================
     # MODELS
     # ============================
-    model_x = make_pipeline(StandardScaler(), Ridge(alpha=1.0))
-    model_y = make_pipeline(StandardScaler(), Ridge(alpha=1.0))
+
+    model_x=models_gaze_engineered.get(model_name_X,models_gaze_engineered['Linear Regression'])
+    model_y=models.get(model_name_Y,models['Linear Regression'])
 
     model_x.fit(X_train_x, y_train_x)
     model_y.fit(X_train_y, y_train_y)
