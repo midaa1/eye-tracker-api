@@ -3,7 +3,8 @@ from flask_cors import CORS
 
 # Local imports from app
 from app.routes import session as session_route
-
+from dotenv import load_dotenv
+load_dotenv()
 
 # Initialize Flask app and enable CORS
 app = Flask(__name__)
