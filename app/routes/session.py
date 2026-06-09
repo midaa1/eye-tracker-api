@@ -28,6 +28,21 @@ from app.services import gaze_tracker
 ALLOWED_EXTENSIONS = {"txt", "webm"}
 COLLECTION_NAME = "session"
 
+
+def sanitize_filename(name):
+    """Sanitize a user-provided filename to prevent path traversal attacks.
+
+    Strips directory components and allows only alphanumeric characters,
+    hyphens, underscores, and dots. Raises ValueError if the result is empty.
+    """
+    # Take only the final path component to strip any directory traversal
+    name = os.path.basename(name)
+    # Allow only safe characters
+    name = re.sub(r'[^a-zA-Z0-9_\-.]', '', name)
+    if not name:
+        raise ValueError("Invalid filename")
+    return name
+
 # Initialize Flask app
 app = Flask(__name__)
 
@@ -62,7 +77,7 @@ def convert_nan_to_none(obj):
 
 def calib_results():
     from_ruxailab = json.loads(request.form['from_ruxailab'])
-    file_name = json.loads(request.form['file_name'])
+    file_name = sanitize_filename(json.loads(request.form['file_name']))
     fixed_points = json.loads(request.form['fixed_circle_iris_points'])
     calib_points = json.loads(request.form['calib_circle_iris_points'])
     screen_height = json.loads(request.form['screen_height'])
@@ -161,6 +176,8 @@ def batch_predict():
 
         if not calib_id:
             return Response("Missing calib_id", status=400)
+
+        calib_id = sanitize_filename(calib_id)
 
         base_path = Path().absolute() / "app/services/calib_validation/csv/data"
         calib_csv_path = base_path / f"{calib_id}_fixed_train_data.csv"
